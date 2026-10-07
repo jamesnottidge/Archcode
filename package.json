@@ -1,15 +1,19 @@
 {
   "name": "arch-code",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "version": "0.1.0",
+  "description": "A coding agent harness built from scratch.",
+  "type": "module",
+  "bin": {
+    "arch-code": "./src/main.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "fake-model": "node test/fake-model.ts"
+  },
   "dependencies": {
     "fast-glob": "^3.3.3",
     "openai": "^7.30.0",

@@ -10,6 +10,9 @@ export interface ToolContext {
     emit: Emit; 
     askUser: (question: string) => Promise<string | null>;  //null =  nobody to ask 
     todos: Todo[];
+    // Files the model has read this session: absolute path -> modification time when read. 
+    // `write` uses it to refuse overwriting files the model has never seen (or that changes since). 
+    readFiles: Map<string, number>;
 }
 
 export interface Tool<Schema extends z.ZodType = z.ZodType> {
@@ -17,8 +20,10 @@ export interface Tool<Schema extends z.ZodType = z.ZodType> {
     description: string; // the model reads this to decide when to use the tool 
     schema:  Schema; // validates the arguments and becomes the JSON schema the model sees
     // If present, the action needs the user's OK. Returns a one-line summary
-    // of what is about to happen, shown in the approval prompt.
-    describeAction?(args: z.infer<Schema>): string;
+    // of what is about to happen, shown in the approval prompt. 
+    // it may look at the disk, so it's async and gets ctx (the tool context). throwing 
+    // a ToolError here refuses the call before the user is ever asked. 
+    describeAction?(args: z.infer<Schema>, ctx: ToolContext): string | Promise<string>;
     execute(args: z.infer<Schema>, ctx: ToolContext): Promise<string>;
 }
 

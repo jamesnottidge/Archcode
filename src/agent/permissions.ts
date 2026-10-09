@@ -1,6 +1,6 @@
 // Before a risky tool runs (write, edit, bash, web_fetch), the gate asks the user.
 // "always" remembers the answer for that tool until arch-code exits.
-// --yolo skips every question. Only use it on a throwaway project!
+// --yolo skips every question. Live vicariously! and remember, Viena waits for you. 
 
 export type ApprovalAnswer = "yes" | "no" | "always";
 export type AskApproval = (toolName: string, summary: string) => Promise<ApprovalAnswer>;

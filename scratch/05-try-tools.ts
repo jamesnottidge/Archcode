@@ -22,6 +22,7 @@ const calls: [string, string][] = [
   ["bash", '{"command":"node --version"}'],
   ["read", '{"path":42}'], // wrong type: watch the validation error
   ["teleport", "{}"], // a tool that doesn't exist
+  ["edit", '{"path":"package.json","old_string":"arch_code","new_string":"x"}']
 ];
 
 for (const [name, args] of calls) {

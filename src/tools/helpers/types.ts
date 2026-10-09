@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { Emit, Todo } from "../event.ts";
+import type { Emit, Todo } from "../../event.ts";
 
 // What every tool gets handed whrn it runs: the harness state. 
 // Tools never import the UI. THey talk to the outside world only through this. 

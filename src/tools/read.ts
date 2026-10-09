@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import z from "zod";
-import { defineTool, ToolError } from "./types.ts";
-import { displayPath, resolvePath } from "./utils.ts";
+import { defineTool, ToolError } from "./helpers/types.ts";
+import { displayPath, resolvePath } from "./helpers/utils.ts";
 
 const DEFAULT_LIMIT = 2000; //lines
 const MAX_LINE_LENGTH = 2000; // characters: minified lines have absurd lines

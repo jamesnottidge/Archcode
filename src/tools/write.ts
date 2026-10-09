@@ -1,9 +1,9 @@
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { file, z } from "zod";
-import { defineTool } from "./types.ts";
-import { countLines, displayPath, resolvePath } from "./utils.ts";
-import { ToolError } from "./types.ts";
+import { defineTool } from "./helpers/types.ts";
+import { countLines, displayPath, resolvePath } from "./helpers/utils.ts";
+import { ToolError } from "./helpers/types.ts";
 
 export const writeTool =  defineTool({
     name: "write", 

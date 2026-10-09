@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
-import { defineTool, ToolError } from "./types.ts";
-import { countLines, displayPath, resolvePath } from "./utils.ts";
+import { defineTool, ToolError } from "./helpers/types.ts";
+import { countLines, displayPath, resolvePath } from "./helpers/utils.ts";
 
 export const editTool = defineTool({
   name: "edit",

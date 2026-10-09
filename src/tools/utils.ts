@@ -5,7 +5,7 @@ export function resolvePath(cwd: string, p: string): string {
     return path.resolve(cwd, p);
 }
 
-// show paths as relative to the project when we can. It's shorter ofr the humans and for the model. 
+// show paths as relative to the project when we can. It's shorter for the humans and for the model. 
 export function displayPath(cwd: string, absolute: string): string {
     const rel = path.relative(cwd, absolute); 
     return rel.startsWith("..") ? absolute : rel || "."; 

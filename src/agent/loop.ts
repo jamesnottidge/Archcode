@@ -27,7 +27,7 @@ export async function* agentTurn(history: Message[], deps: TurnDeps): AsyncGener
 
   while (true) {
     // ── Boundary 1 ── inject "steering" messages typed while we were busy.
-    const steering = yield "model_request";
+    const steering = (yield "model_request") ?? [];
     for (const text of steering) {
       history.push({ role: "user", content: text });
       ctx.emit({ type: "user_message_injected", text, kind: "steering" });
@@ -40,16 +40,21 @@ export async function* agentTurn(history: Message[], deps: TurnDeps): AsyncGener
       onText: (text) => ctx.emit({ type: "text_delta", text }),
       onReasoning: (text) => ctx.emit({ type: "reasoning_delta", text }),
     });
-    ctx.emit({ type: "message_done" });
-    tracer.record({
-      kind: "model",
-      name: model.name,
-      durationMs: Date.now() - started,
-      usage: reply.usage,
-      toolCalls: reply.toolCalls.map((c) => c.function.name),
-    });
-    if (reply.usage) ctx.emit({ type: "usage", usage: reply.usage });
     history.push(reply.message);
+    ctx.emit({ type: "message_done" });
+    try {
+
+        tracer.record({
+            kind: "model",
+            name: model.name,
+            durationMs: Date.now() - started,
+            usage: reply.usage,
+            toolCalls: reply.toolCalls.map((c) => c.function.name),
+        });
+    } catch(err) {
+        console.log(err);
+    }
+    if (reply.usage) ctx.emit({ type: "usage", usage: reply.usage });
 
     // ── ACT + OBSERVE ── run every requested tool and append each result.
     if (reply.toolCalls.length > 0) {
@@ -67,7 +72,7 @@ export async function* agentTurn(history: Message[], deps: TurnDeps): AsyncGener
 
     // ── Boundary 2 ── no tool calls means the model thinks it's done.
     // Queued "follow-up" messages extend the turn; otherwise we stop.
-    const followUps = yield "would_stop";
+    const followUps = (yield "would_stop") ?? [];
     if (followUps.length === 0) return;
     for (const text of followUps) {
       history.push({ role: "user", content: text });

@@ -198,6 +198,7 @@ export class TerminalUI {
       case "turn_started":
         return;
       case "turn_finished":
+        this.print(renderTodos(event.todos).replace(/^/gm, "  "));
         this.flush();
         if (event.reason === "aborted") this.print(styleText("yellow", "⏹ interrupted"));
         if (event.reason === "error") this.print(styleText("red", `✖ ${event.error}`));

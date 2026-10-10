@@ -24,6 +24,6 @@ export type AgentEvent =
   | { type: "todos_updated"; todos: Todo[] }
   | { type: "user_message_injected"; text: string; kind: "steering" | "follow_up" }
   | { type: "usage"; usage: Usage }
-  | { type: "turn_finished"; reason: "done" | "aborted" | "error"; error?: string };
+  | { type: "turn_finished"; reason: "done" | "aborted" | "error"; error?: string , todos: Todo[]};
 
 export type Emit = (event: AgentEvent) => void;

@@ -90,7 +90,7 @@ export class ToolRegistry {
       } catch (err) {
         return fail(ctx.signal.aborted ? "Interrupted by the user." : errorText(err));
       }
-      const allowed = await this.gate.allow(name, summary);
+      const allowed = await this.gate.allow(name, summary, parsed.data);
       if (!allowed) {
         return fail("The user denied this action. Don't retry it; ask the user how they want to proceed.");
       }

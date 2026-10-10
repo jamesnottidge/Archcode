@@ -106,7 +106,7 @@ export class Runner {
       // Save whatever this turn produced, finished or not.
       this.deps.session.append(this.history.slice(firstNewMessage));
       this.controller = null;
-      emit({ type: "turn_finished", reason, error });
+      emit({ type: "turn_finished", reason, error, todos: this.todos });
     }
   }
 

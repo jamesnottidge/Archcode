@@ -20,6 +20,8 @@ interface WritePlan {
 
 export const writeTool = defineTool({
   name: "write",
+  kind: "edit",
+  subject: (args) => args.path, 
   description:
     "Create a new file, or replace ALL of an existing file's content. Creates parent directories. To overwrite an existing file you must have read it in this session (and it must not have changed since). To change part of a file, use edit.",
   schema,
@@ -39,8 +41,8 @@ export const writeTool = defineTool({
   async execute(args, ctx) {
     const { abs, shown, existing, text, raw } = await planWrite(args, ctx);
     if (existing?.raw === raw) return `No change: ${shown} already has exactly this content.`;
-    if (!existing) await mkdir(path.dirname(abs), { recursive: true });
-    const mtimeMs = await saveTextFile(abs, raw, { mode: existing?.mode, signal: ctx.signal });
+    if (!existing) await ctx.env.fs.mkdirp(path.dirname(abs));
+    const mtimeMs = await saveTextFile(ctx.env.fs, abs, raw, { mode: existing?.mode, signal: ctx.signal });
     ctx.readFiles.set(abs, mtimeMs); // the model knows what's in it now: it wrote it
 
     const kept = [existing?.eol === "\r\n" && "CRLF line endings", existing?.bom && "byte-order mark"].filter(Boolean);
@@ -51,7 +53,7 @@ export const writeTool = defineTool({
 async function planWrite({ path: p, content }: z.infer<typeof schema>, ctx: ToolContext): Promise<WritePlan> {
   const abs = resolvePath(ctx.cwd, p);
   const shown = displayPath(ctx.cwd, abs);
-  const existing = await loadTextFile(abs, shown, ctx.signal); // refuses directories and binary files
+  const existing = await loadTextFile( ctx.env.fs,abs, shown, ctx.signal); // refuses directories and binary files
   if (!existing) return { abs, shown, existing, text: content, raw: content }; // new file: exactly what the model wrote
 
   // Never replace a file the model hasn't seen (or has only seen an older version of):

@@ -26,6 +26,8 @@ interface EditPlan {
 
 export const editTool = defineTool({
   name: "edit",
+  kind: "edit",
+  subject: (args) => args.path,
   description:
     "Replace text in a file. Copy old_string exactly from the file, including indentation. It must appear exactly once (include a few surrounding lines to make it unique), or set replace_all to change every occurrence. If there's no exact match, edit retries ignoring indentation and quote style, and says so in its result. Read the file first.",
   schema,
@@ -44,7 +46,7 @@ export const editTool = defineTool({
     // Plan again: the file may have changed while the user was reading the prompt.
     const plan = await planEdit(args, ctx);
     const { file } = plan;
-    const mtimeMs = await saveTextFile(file.path, plan.newRaw, { mode: file.mode, signal: ctx.signal });
+    const mtimeMs = await saveTextFile(ctx.env.fs, file.path, plan.newRaw, { mode: file.mode, signal: ctx.signal}) 
     // If the model's read of this file was up to date, it still is: it made this change itself.
     // (Otherwise leave it stale, so `write` still insists on a fresh read.)
     if (ctx.readFiles.get(file.path) === file.mtimeMs) ctx.readFiles.set(file.path, mtimeMs);
@@ -62,7 +64,7 @@ async function planEdit(args: EditArgs, ctx: ToolContext): Promise<EditPlan> {
 
   const abs = resolvePath(ctx.cwd, args.path);
   const shown = displayPath(ctx.cwd, abs);
-  const file = await loadTextFile(abs, shown, ctx.signal); // refuses directories and binary files
+  const file = await loadTextFile(ctx.env.fs, abs, shown, ctx.signal); // refuses directories and binary files
   if (!file) throw new ToolError(`File not found: ${shown}. Use write to create new files.`);
   if (!file.validUtf8) {
     throw new ToolError(

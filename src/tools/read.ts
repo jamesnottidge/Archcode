@@ -9,6 +9,8 @@ const MAX_CHARS = 25_000; // per call. Under the registry's 30k cap, so we stop 
 
 export const readTool = defineTool({
   name: "read",
+  kind: "read",
+  subject: (args) => args.path,
   description:
     "Read a text file. Returns up to 2000 lines (and about 25,000 characters) per call; when there's more, the result says which offset to continue from.",
   schema: z.object({
@@ -20,7 +22,7 @@ export const readTool = defineTool({
   async execute({ path, offset = 1, limit = DEFAULT_LIMIT }, ctx) {
     const abs = resolvePath(ctx.cwd, path);
     const shown = displayPath(ctx.cwd, abs);
-    const file = await loadTextFile(abs, shown, ctx.signal); // refuses directories and binary files
+    const file = await loadTextFile(ctx.env.fs, abs, shown, ctx.signal);
     if (!file) throw new ToolError(`File not found: ${shown}`);
     // Remember that the model has seen this version of the file. `write` checks this record.
     ctx.readFiles.set(abs, file.mtimeMs);

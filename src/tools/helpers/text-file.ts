@@ -6,8 +6,13 @@
 
 import { chmod, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { WorkspaceFs } from "../../env/types.ts";
 import { ToolError } from "./types.ts";
 
+
+// read, write and edit all load and save files through here, so they agree on what a "text file" is, 
+// and none of them can quietly damage one. The bytes themselves come from ctx.env.fs: your disk, 
+// a Docker workspace, or a remote sandbox. This file doesn't care which. 
 
 export const BOM = "\uFEFF"; // byte-order mark: an invisible first character some editors add
 const MAX_BYTES = 20 * 1024 * 1024; // bigger than this isn't source code
@@ -25,21 +30,17 @@ export interface TextFile {
 
 // Returns null if the file doesn't exist. Anything else that's wrong is either a
 // ToolError the model can act on, or the real error (EACCES...), never disguised.
-export async function loadTextFile(abs: string, shown: string, signal?: AbortSignal): Promise<TextFile | null> {
-  let info;
-  try {
-    info = await stat(abs); // stat BEFORE reading: if the file changes in between, mtime looks stale, which is the safe side
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw err;
-  }
-  if (info.isDirectory()) throw new ToolError(`${shown} is a directory, not a file. Use glob to see what's in it.`);
-  if (!info.isFile()) throw new ToolError(`${shown} is not a regular file (it's a device, pipe or socket).`);
+export async function loadTextFile(fs: WorkspaceFs, abs: string, shown: string, signal?: AbortSignal): Promise<TextFile | null> {
+ // stat BEFORE reading: if the file changes in between, mtime looks stale, which is the safe side
+  const info = await fs.stat(abs);
+  if (!info) return null;
+  if (info.kind === "dir") throw new ToolError(`${shown} is a directory, not a file. Use glob to see what's in it.`);
+  if (info.kind !== "file") throw new ToolError(`${shown} is not a regular file (it's a device, pipe or socket).`);
   if (info.size > MAX_BYTES) {
     throw new ToolError(`${shown} is ${(info.size / 1024 / 1024).toFixed(1)} MB, too big to handle as text. Use bash (head, tail, grep) to look at parts of it.`);
   }
 
-  const bytes = await readFile(abs, { signal });
+  const bytes = await fs.readFile(abs, signal);
   // A NUL byte in the first 8 KB almost always means binary (images, zips, compiled code...).
   if (bytes.subarray(0, 8192).includes(0)) {
     throw new ToolError(`${shown} looks like a binary file (it contains NUL bytes), not text.`);
@@ -99,21 +100,8 @@ export function toRawRanges(file: TextFile, ranges: Range[]): Range[] {
   return ranges.map(({ start, end }) => ({ start: moveTo(start), end: moveTo(end) }));
 }
 
-// Save atomically: write a temporary file next to the target, then rename it over the target.
-// A crash, a full disk or Esc halfway through leaves the original untouched; you never get half
-// a file. (The trade-off, shared with vim and most editors: the file gets a new inode, so a hard
-// link to it would keep pointing at the old content.) Returns the new modification time.
-export async function saveTextFile(abs: string, raw: string, options: { mode?: number; signal?: AbortSignal } = {}): Promise<number> {
-  const target = await realpath(abs).catch(() => abs); // follow a symlink: replace its target, not the link
-  const temp = path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}-${Date.now()}.arch-code-tmp`);
-  try {
-    await writeFile(temp, raw, { encoding: "utf8", flag: "wx", signal: options.signal });
-    if (options.mode !== undefined) await chmod(temp, options.mode & 0o7777); // keep permissions (executable scripts!)
-    options.signal?.throwIfAborted(); // last moment to back out cleanly
-    await rename(temp, target);
-  } catch (err) {
-    await unlink(temp).catch(() => {});
-    throw err;
-  }
-  return (await stat(target)).mtimeMs;
+// Saving is the environment's job (it knows how to do it atomically where the bytes live).
+ // Returns the new modification time.
+export function saveTextFile(fs: WorkspaceFs, abs: string, raw: string, options: { mode?: number; signal?: AbortSignal } = {}): Promise<number> {
+  return fs.writeFileAtomic(abs, raw, options);
 }

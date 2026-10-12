@@ -10,6 +10,7 @@ export function renderTodos(todos: Todo[]): string {
 
 export const todoTool = defineTool({
   name: "todo_write",
+  kind: "read",
   description:
     "Create or update your task list for the current job. Always send the FULL list (it replaces the old one). Keep exactly one task in_progress while working, and mark tasks completed as soon as they are done.",
   schema: z.object({

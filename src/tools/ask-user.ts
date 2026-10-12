@@ -3,6 +3,7 @@ import { defineTool, ToolError } from "./helpers/types.ts";
 
 export const askUserTool = defineTool({
   name: "ask_user",
+  kind: "read",
   description:
     "Ask the user a question and wait for the answer. Use it only when you are blocked on a decision or information that only the user has.",
   schema: z.object({

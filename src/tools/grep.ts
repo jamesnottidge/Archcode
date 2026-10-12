@@ -11,6 +11,7 @@ const MAX_FILE_SIZE = 1_000_000; // skip huge files (bundles, data dumps)
 
 export const grepTool = defineTool({
   name: "grep",
+  kind: "read",
   description:
     "Search file contents with a regular expression (JavaScript syntax). Returns matching lines as path:line: text. Use include to limit which files are searched.",
   schema: z.object({
@@ -30,12 +31,11 @@ export const grepTool = defineTool({
 
     // Which files? Either the single file we were given, or the ones under a directory.
     const base = resolvePath(ctx.cwd, target);
-    const info = await stat(base).catch((err: NodeJS.ErrnoException) => {
-      if (err.code === "ENOENT") throw new ToolError(`Path not found: ${target}`);
-      throw err; // EACCES and friends: the real reason, not "not found"
-    });
-    const listed = info.isDirectory() ? await findFiles(include, base, ctx.cwd) : { files: [path.basename(base)], note: null };
-    const dir = info.isDirectory() ? base : path.dirname(base);
+    const info = await ctx.env.fs.stat(base); // EACCESS and friends throw: the real reason, not not found. 
+    if (!info) throw new ToolError(`Path not found: ${target}`);
+    const isDir = info.kind === "dir";
+    const listed = isDir ? await findFiles(ctx.env.fs, include, base, ctx.cwd, ctx.signal) : {files: [path.basename(base)], note: null}
+    const dir = isDir ? base : path.dirname(base);
     const where = displayPath(ctx.cwd, base);
     if (listed.files.length === 0) {
       // Say so plainly. "No matches" here would make the model believe the text doesn't exist.
@@ -56,13 +56,13 @@ export const grepTool = defineTool({
       const shown = displayPath(ctx.cwd, file);
       let text: string;
       try {
-        if ((await stat(file)).size > MAX_FILE_SIZE) {
+        if (((await ctx.env.fs.stat(file))?.size ?? 0) > MAX_FILE_SIZE) {
           tooBig.push(shown);
           continue;
         }
         // The same loader read and edit use: BOM removed and "\r\n" made "\n", so ^ and $ work on
         // Windows files too. Returns null if the file vanished since we listed it.
-        const loaded = await loadTextFile(file, shown, ctx.signal);
+        const loaded = await loadTextFile(ctx.env.fs, file, shown, ctx.signal);
         if (!loaded) continue;
         text = loaded.text;
       } catch (err) {

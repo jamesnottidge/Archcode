@@ -8,6 +8,8 @@ const TEXT_TYPES = ["text/", "application/json", "application/xml", "application
 
 export const webFetchTool = defineTool({
   name: "web_fetch",
+  kind: "network",
+  subject: (args) => args.url, 
   description:
     "Download a web page or text resource (docs, READMEs, JSON APIs) and return it as text. HTML is converted to Markdown.",
   schema: z.object({

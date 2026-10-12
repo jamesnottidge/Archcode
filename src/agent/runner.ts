@@ -5,13 +5,14 @@ import type { ToolRegistry } from "../tools/registry.ts";
 import { agentTurn } from "./loop.ts";
 import type { SessionLog } from "./session.ts";
 import type { Tracer } from "./trace.ts";
+import type { ExecutionEnv } from "../env/types.ts";
 
 export interface RunnerDeps {
   model: Model;
   tools: ToolRegistry;
   session: SessionLog;
   tracer: Tracer;
-  cwd: string;
+  env: ExecutionEnv; // where the tools act
   emit: Emit;
   askUser: (question: string) => Promise<string | null>;
 }
@@ -28,6 +29,7 @@ export class Runner {
   private deps: RunnerDeps;
   private steering: string[] = []; // injected before the next model call
   private followUps: string[] = []; // injected when the turn would otherwise end
+  private notes: string[] = []; // things the model must know at the start of the next turn. 
   private controller: AbortController | null = null;
 
   constructor(deps: RunnerDeps, history: Message[] = []) {
@@ -47,6 +49,14 @@ export class Runner {
     this.followUps.push(text);
   }
 
+  // The ground moved under the model (/sandbox, /docker-sandbox): tell it with the next message,
+  // and forget which files it has read (they may be different files now, or at new paths).
+   environmentChanged(note: string): void {
+     this.notes.push(note);
+     this.readFiles.clear();
+   }
+ 
+
   // Cooperative abort: signal everything in flight, drop queued input.
   abort(): void {
     if (!this.controller) return;
@@ -61,7 +71,8 @@ export class Runner {
     const controller = new AbortController();
     this.controller = controller;
     const firstNewMessage = this.history.length;
-    this.history.push({ role: "user", content: prompt });
+    const notes = this.notes.splice(0).map((n) => `[arch-code: ${n}]\n`).join("");
+    this.history.push({ role: "user", content: notes ? `${notes}\n${prompt}` : prompt });
     emit({ type: "turn_started" });
 
     let reason: "done" | "aborted" | "error" = "done";
@@ -71,9 +82,10 @@ export class Runner {
         model: this.deps.model,
         tools: this.deps.tools,
         tracer: this.deps.tracer,
-        system: systemPrompt(this.deps.cwd),
+        system: systemPrompt(this.deps.env),
         ctx: {
-          cwd: this.deps.cwd,
+          cwd: this.deps.env.cwd,
+          env: this.deps.env, 
           signal: controller.signal,
           emit,
           askUser: this.deps.askUser,

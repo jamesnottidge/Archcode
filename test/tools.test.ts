@@ -10,6 +10,7 @@ import { describe, test } from "node:test";
 import { PermissionGate } from "../src/agent/permissions.ts";
 import { ALL_TOOLS, ToolRegistry } from "../src/tools/registry.ts";
 import type { ToolContext } from "../src/tools/helpers/types.ts";
+import { HostEnv } from "../src/env/host.ts";
 
 async function setup() {
   const cwd = await mkdtemp(path.join(tmpdir(), "arch-code-test-"));
@@ -25,6 +26,7 @@ async function setup() {
   const registry = new ToolRegistry(ALL_TOOLS, gate);
   const ctx: ToolContext = {
     cwd,
+    env: new HostEnv(cwd),
     signal: new AbortController().signal,
     emit: () => {},
     askUser: async () => null,

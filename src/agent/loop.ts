@@ -40,7 +40,7 @@ export async function* agentTurn(history: Message[], deps: TurnDeps): AsyncGener
 
     // ── REASON ── ask the model what to do next (streaming text to the UI as it comes).
     const started = Date.now();
-    const reply = await model.complete(deps.system, history, tools.definitions(), {
+    const reply = await model.complete(deps.system, history, tools.definitions(ctx.env), {
       signal: ctx.signal,
       onText: (text) => ctx.emit({ type: "text_delta", text }),
       onReasoning: (text) => ctx.emit({ type: "reasoning_delta", text }),

@@ -9,6 +9,7 @@ import type { AgentEvent } from "./event.ts";
 import { type Message, Model } from "./model.ts";
 import { ALL_TOOLS, ToolRegistry } from "./tools/registry.ts";
 import { TerminalUI } from "./ui/terminal.ts";
+import { HostEnv } from "./env/host.ts";
 
 const USAGE = `arch-code: a coding agent built from scratch
 
@@ -82,7 +83,7 @@ async function main(): Promise<number> {
         tools: new ToolRegistry(ALL_TOOLS, gate),
         session,
         tracer,
-        cwd: config.cwd,
+        env: new HostEnv(config.cwd),
         emit: (e) => (failed = printHeadless(e) || failed),
         askUser: async () => null, // nobody to ask
       },
@@ -101,7 +102,7 @@ async function main(): Promise<number> {
       tools: new ToolRegistry(ALL_TOOLS, gate),
       session,
       tracer,
-      cwd: config.cwd,
+      env: new HostEnv(config.cwd),
       emit: ui.handle,
       askUser: ui.askUser,
     },

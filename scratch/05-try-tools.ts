@@ -1,12 +1,15 @@
-// Chapter 9 checkpoint: drive your tools by hand, playing the part of the model.
 import { PermissionGate } from "../src/agent/permissions.ts";
 import { ALL_TOOLS, ToolRegistry } from "../src/tools/registry.ts";
 import type { ToolContext } from "../src/tools/helpers/types.ts";
+import { HostEnv } from "../src/env/host.ts";
 
 const registry = new ToolRegistry(ALL_TOOLS, new PermissionGate({ yolo: true, ask: async () => "yes" }));
 
+const env = new HostEnv(process.cwd()); 
+
 const ctx: ToolContext = {
-  cwd: process.cwd(),
+  cwd: env.cwd,
+  env, 
   signal: new AbortController().signal,
   emit: (event) => console.log("  event:", event.type),
   askUser: async () => null,
@@ -29,4 +32,4 @@ for (const [name, args] of calls) {
   const result = await registry.run({ id: "manual", type: "function", function: { name, arguments: args } }, ctx);
   console.log(`\n▶ ${name} ${args}${result.isError ? "  (error)" : ""}\n${result.output}`);
 }
-console.log("\nThe schemas the model will see:\n", JSON.stringify(registry.definitions()[0], null, 2));
+console.log("\nThe schemas the model will see:\n", JSON.stringify(registry.definitions(env)[0], null, 2));

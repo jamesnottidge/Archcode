@@ -14,6 +14,7 @@ import { ToolError } from "./helpers/types.ts";
 import { truncateMiddle } from "./helpers/utils.ts";
 import { webFetchTool } from "./web-fetch.ts";
 import { writeTool } from "./write.ts";
+import type { ExecutionEnv } from "../env/types.ts";
 
 export const ALL_TOOLS: Tool[] = [
   readTool,
@@ -43,15 +44,17 @@ export class ToolRegistry {
     this.gate = gate;
   }
 
-  // The tool list we send to the model with every request.
-  definitions(): ChatCompletionTool[] {
+  // The tool list we send to the model with every request. Descriptions can depend on where the tools
+  // run. Bash tells the model about its sandbox. 
+  definitions(env: ExecutionEnv): ChatCompletionTool[] {
     return [...this.tools.values()].map((tool) => {
       // zod -> JSON Schema. "input" mode describes what the model may SEND
       // (optional fields really are optional).
+      const description = typeof tool.description === "function" ? tool.description(env): tool.description
       const { $schema, ...parameters } = z.toJSONSchema(tool.schema, { io: "input" });
       return {
         type: "function",
-        function: { name: tool.name, description: tool.description, parameters },
+        function: { name: tool.name, description, parameters },
       };
     });
   }

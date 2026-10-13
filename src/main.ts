@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs, styleText } from "node:util";
-import { PermissionGate } from "./agent/permissions.ts";
+import { loadRules, PermissionGate } from "./agent/permissions.ts";
 import { Runner } from "./agent/runner.ts";
 import { SessionLog } from "./agent/session.ts";
 import { Tracer, traceStats } from "./agent/trace.ts";
@@ -63,6 +63,7 @@ async function main(): Promise<number> {
     session = SessionLog.create(config.dataDir, config.cwd, config.model);
   }
 
+  const rules =  loadRules(`${config.dataDir}/settings.json`); // your permission rules
   const model = new Model(config);
   const tracer = new Tracer(config.dataDir, session.id);
   const headless = args.print !== undefined;
@@ -71,6 +72,7 @@ async function main(): Promise<number> {
   if (headless) {
     const gate = new PermissionGate({
       yolo: args.yolo ?? false,
+      sandboxed: false, 
       ask: async (_tool, summary) => {
         console.error(styleText("yellow", `denied (headless, no --yolo): ${summary}`));
         return "no";
@@ -95,7 +97,7 @@ async function main(): Promise<number> {
 
   // ── interactive ──
   const ui = new TerminalUI();
-  const gate = new PermissionGate({ yolo: args.yolo ?? false, ask: ui.askApproval });
+  const gate = new PermissionGate({ yolo: args.yolo ?? false, sandboxed: false, rules, ask: ui.askApproval });
   const runner = new Runner(
     {
       model,

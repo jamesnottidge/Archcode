@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { z } from "zod";
 import type { PermissionGate } from "../agent/permissions.ts";
@@ -11,7 +12,7 @@ import { readTool } from "./read.ts";
 import { todoTool } from "./todo.ts";
 import type { Tool, ToolContext } from "./helpers/types.ts";
 import { ToolError } from "./helpers/types.ts";
-import { truncateMiddle } from "./helpers/utils.ts";
+import { truncateMiddle, displayPath, resolvePath } from "./helpers/utils.ts";
 import { webFetchTool } from "./web-fetch.ts";
 import { writeTool } from "./write.ts";
 import type { ExecutionEnv } from "../env/types.ts";
@@ -82,23 +83,34 @@ export class ToolRegistry {
       return fail(`Invalid arguments for ${name}:\n${z.prettifyError(parsed.error)}`);
     }
 
-    // 3. Ask permission for risky actions. describeAction may look at the disk (to show a diff,
-    //    or to notice the call can't work: "you haven't read that file"), so it can fail too.
-    //    If it does, the call is refused before the user is bothered with a prompt.
+    // 3. Permission. The gate decides from the tool's kind, its subject (command, path, URL)
+    // and the rules; it asks the human only when it has to. describeAction builds the prompt,
+    // and may look at the disk (to show a diff, or to notice the call can't work: "you haven't
+    //    read that file"), so it can fail too: then the call is refused before anyone is asked.
     if (ctx.signal.aborted) return fail("Skipped: the user interrupted the turn.");
-    if (tool.describeAction) {
+    const args = parsed.data; 
+    const rawSubject =  tool.subject?.(args) ?? null;
+    const isPath = tool.kind === "read" || tool.kind === "edit";
+    const subject = rawSubject !== null && isPath ? displayPath(ctx.cwd, resolvePath(ctx.cwd, rawSubject)) : rawSubject
+    // on your machine(host or OS sandbox) reading outside this project asks first. In Docker there's no outside the project. 
+    const outsideProject = isPath && rawSubject !== null && ctx.env.kind !== "docker" && path.isAbsolute(subject!)
+    const request = {tool: name, kind: tool.kind, subject, outsideProject};
+    let decision =  this.gate.decide(request);
+    if (decision.outcome === "ask") {
       let summary: string;
       try {
-        summary = await tool.describeAction(parsed.data, ctx);
+        summary = tool.describeAction ? await tool.describeAction(args, ctx) : `${name} ${subject ?? ""}`.trim();
       } catch (err) {
         return fail(ctx.signal.aborted ? "Interrupted by the user." : errorText(err));
       }
-      const allowed = await this.gate.allow(name, summary, parsed.data);
-      if (!allowed) {
-        return fail("The user denied this action. Don't retry it; ask the user how they want to proceed.");
-      }
+      decision = await this.gate.askHuman(request, summary);
     }
-
+    if (decision.outcome === "deny" ) {
+      return fail(
+        decision.why === "the user said no" ? "The user denied this action. Don't retry it; ask the user how they want to proceed."
+        : `Not allowed: ${decision.why}. Don't retry it; find another way or ask the user.`
+      )
+    }
     // 4. Run it, and cap whatever comes back.
     try {
       const output = await tool.execute(parsed.data, ctx);

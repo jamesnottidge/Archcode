@@ -128,13 +128,13 @@ export class TerminalUI {
 
   // The summary's first line says what will happen ("edit src/app.ts (1 replacement)");
   // any lines after it are a preview, like a diff.
-  askApproval = async (toolName: string, summary: string): Promise<ApprovalAnswer> => {
+  askApproval = async (_toolName: string, summary: string, always: string): Promise<ApprovalAnswer> => {
     const [action, ...preview] = visible(summary).split("\n");
     const header = [styleText("yellow", `  ⚠ Arch wants to ${action}`), ...preview.map((line) => `    ${colorDiffLine(line)}`)];
     const answer = await this.ask(
       "approval",
       header.join("\n"),
-      styleText("yellow", `  allow? [y]es / [n]o / [a]lways allow ${toolName} › `),
+      styleText("yellow", `  allow? [y]es / [n]o / [a]lways allow ${visible(always)}} › `),
     );
     const a = (answer ?? "n").toLowerCase();
     return a.startsWith("a") ? "always" : a.startsWith("y") ? "yes" : "no";

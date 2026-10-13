@@ -18,6 +18,7 @@ async function setup() {
   const prompts: string[] = [];
   const gate = new PermissionGate({
     yolo: false,
+    sandboxed: false, 
     ask: async (_tool, summary) => {
       prompts.push(summary);
       return "yes";
